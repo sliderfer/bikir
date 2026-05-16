@@ -583,7 +583,7 @@ html,body{
     <div class="prize-item" id="prizeItem">🍟 Cono de Papas Fritas</div>
     <div class="prize-code-label">Mostrá este código al mozo</div>
     <div class="prize-code" id="prizeCode">—</div>
-    <div class="prize-inst">Válido solo hoy · Una vez por persona<br>El mozo lo marca como usado</div>
+    <div class="prize-inst" id="prizeInst">Válido solo hoy · Una vez por persona<br>El mozo lo marca como usado</div>
   </div>
 
   <div class="win-btns">
@@ -730,7 +730,33 @@ function drawIntroWave(){
 drawIntroWave();
 
 // ===================== IA =====================
-async function askIA(prompt){
+const VIKINGO={
+  cerveza:[
+    (r,e,m)=>`¡Óyeme, guerrero! Esta ${m} la ${r} es la única respuesta correcta. Amarga en la boca, épica en el alma. ¡Pedila ya!`,
+    (r,e,m)=>`La ${r} ya te está esperando en el barril. Lúpulo fresco, espuma vikinga. No seas cobarde, animate.`,
+    (r,e,m)=>`Sin vueltas: ${r}. Eso es todo lo que necesitás saber esta ${m}. El resto es ruido.`,
+  ],
+  comida:[
+    (r,e,m)=>`Las Papas Vikinga con cheddar son la única respuesta válida. O la Tabla Ruta 9 si venís acompañado. No te hagas el héroe solo.`,
+    (r,e,m)=>`El Choripán del Camino es legendario en estas tierras. Pan casero, chimichurri de batalla. Pedilo antes que se acabe.`,
+    (r,e,m)=>`Tabla Ruta 9 para dos y una pinta bien fría. Así conquistaban los vikingos. ¿Vos qué esperás?`,
+  ],
+  especial:[
+    (r,e,m)=>e?`¡Atención, viajero! Hoy tenemos: ${e}. No te lo perdás, esto no dura para siempre.`:`Esta ${m} el barco zarpa con la ${r}. Sumate a la tripulación.`,
+    (r,e,m)=>e?`Especial de hoy — ${e}. El vikingo lo jura por su hacha.`:`Hoy el especial lo ponés vos: la ${r} y la noche ya está ganada.`,
+  ],
+  sorpresa:[
+    (r,e,m)=>`¡Cerrá los ojos! ${r} con una Tabla Ruta 9. Que los dioses nórdicos decidan el resto.`,
+    (r,e,m)=>`Stout Noche Vikinga + Choripán del Camino. Una epifanía. Probalo y después me contás.`,
+    (r,e,m)=>`Esta ${m} yo arrancaría con la ${r} y las Papas Vikinga. Plan infalible de guerrero.`,
+  ],
+  saludo:[
+    (r,e,m)=>`¡Bienvenido a BIKIHR, guerrero! Esta ${m} te espera la ${r} bien fría. ¿Estás listo para la batalla?`,
+    (r,e,m)=>`¡Otro valiente llega a las costas de Ruta 9! Esta ${m} empieza bien: la ${r} en el barril te espera. ¡Avanzá!`,
+    (r,e,m)=>`¡Por Odín, llegaste! Esta ${m} todo está listo: cervezas, fuego y buena compañía. Arrancá con la ${r}.`,
+  ],
+};
+function askIA(prompt){
   const el=document.getElementById('iaTxt');
   const cur=document.getElementById('iaCur');
   el.textContent='';cur.style.display='inline-block';
@@ -738,12 +764,15 @@ async function askIA(prompt){
   const esp=document.getElementById('ownerEsp')?.value||'';
   const hora=new Date().getHours();
   const momento=hora<12?'mañana':hora<18?'tarde':'noche';
-  const sys=`Sos el vikingo de BIKIHR, cervecería artesanal en Ruta 9, Villa Ramallo. Rudo, directo, divertido, hablás en argentino rioplatense. Recomendación de hoy: ${rec}. ${esp?'Especial: '+esp:''}. Es de ${momento}. Respondé en 2-3 oraciones máximo. Sé épico y tentador.`;
-  try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:prompt}]})});
-    const d=await r.json();
-    typeText(d.content?.[0]?.text||'¡El vikingo está remando!',el,cur);
-  }catch(e){el.textContent='⚡ El vikingo está en ruta. Intentá de nuevo.';cur.style.display='none';}
+  const pl=prompt.toLowerCase();
+  let pool;
+  if(pl.includes('cerveza')||pl.includes('tomo'))pool=VIKINGO.cerveza;
+  else if(pl.includes('picada')||pl.includes('como')||pl.includes('comer'))pool=VIKINGO.comida;
+  else if(pl.includes('especial'))pool=VIKINGO.especial;
+  else if(pl.includes('sorpren'))pool=VIKINGO.sorpresa;
+  else pool=VIKINGO.saludo;
+  const fn=pool[Math.floor(Math.random()*pool.length)];
+  setTimeout(()=>typeText(fn(rec,esp,momento),el,cur),300);
 }
 function typeText(txt,el,cur){
   let i=0;el.textContent='';
@@ -809,6 +838,18 @@ function generateCode(){
   const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code='';for(let i=0;i<6;i++)code+=chars[Math.floor(Math.random()*chars.length)];
   return code;
+}
+
+// ===================== UBICACIÓN BIKIHR =====================
+// ⚠️ Verificar coordenadas exactas en Google Maps y actualizar si es necesario
+const BIKIHR_LAT=-33.484;
+const BIKIHR_LNG=-60.009;
+const BIKIHR_RADIO_M=300; // metros de radio desde el local
+
+function distanciaM(lat1,lng1,lat2,lng2){
+  const R=6371000,dL=(lat2-lat1)*Math.PI/180,dG=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dL/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dG/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
 // ===================== JUEGO =====================
@@ -1055,35 +1096,55 @@ function drawShip(ctx,x,y){
 }
 
 function showWin(){
-  // Generar código único
-  const code=generateCode();
-  const prize=document.getElementById('ownerPrize')?.value||'🍟 Cono de Papas Fritas';
+  if(gameScore>gameRecord){gameRecord=gameScore;localStorage.setItem('bikihr_record',gameRecord);}
+  stats.jugaron++;document.getElementById('statJugaron').textContent=stats.jugaron;
 
-  if(prizeCount>0){
-    // Hay premios disponibles
-    todayCodes.push({code,prize,used:false,ts:new Date().toLocaleTimeString()});
-    stats.ganaron++;
-    document.getElementById('statGanaron').textContent=stats.ganaron;
-    prizeCount=Math.max(0,prizeCount-1);
-    document.getElementById('countNum').textContent=prizeCount;
-    document.getElementById('counterName').textContent=prizeCount+' disponibles';
-    document.getElementById('statDisponibles').textContent=prizeCount;
-    renderCodes();
-
-    document.getElementById('prizeItem').textContent=prize;
-    document.getElementById('prizeCode').textContent=code;
-    goTo('winScreen');
-  } else {
-    // Premios agotados — igual felicitamos pero no hay código
+  if(prizeCount<=0){
     document.getElementById('prizeItem').textContent='😔 Premios agotados por hoy';
     document.getElementById('prizeCode').textContent='—';
-    goTo('winScreen');
+    document.getElementById('prizeInst').textContent='Mañana hay más premios · Seguí jugando';
+    goTo('winScreen');return;
   }
 
-  // Actualizar record
-  if(gameScore>gameRecord){gameRecord=gameScore;localStorage.setItem('bikihr_record',gameRecord);}
-  stats.jugaron++;
-  document.getElementById('statJugaron').textContent=stats.jugaron;
+  // Verificar geolocalización antes de dar el premio
+  if(!navigator.geolocation){entregarPremio();return;}
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      const dist=distanciaM(pos.coords.latitude,pos.coords.longitude,BIKIHR_LAT,BIKIHR_LNG);
+      if(dist<=BIKIHR_RADIO_M){
+        entregarPremio();
+      } else {
+        document.getElementById('prizeItem').textContent='📍 Tenés que estar en BIKIHR';
+        document.getElementById('prizeCode').textContent='—';
+        document.getElementById('prizeInst').textContent='El premio solo se canjea estando en la cervecería · Ruta 9, Villa Ramallo';
+        goTo('winScreen');
+      }
+    },
+    ()=>{
+      document.getElementById('prizeItem').textContent='📍 Ubicación requerida';
+      document.getElementById('prizeCode').textContent='—';
+      document.getElementById('prizeInst').textContent='Activá el GPS para verificar que estás en BIKIHR e intentá de nuevo';
+      goTo('winScreen');
+    },
+    {enableHighAccuracy:true,timeout:8000,maximumAge:0}
+  );
+}
+
+function entregarPremio(){
+  const code=generateCode();
+  const prize=document.getElementById('ownerPrize')?.value||'🍟 Cono de Papas Fritas';
+  todayCodes.push({code,prize,used:false,ts:new Date().toLocaleTimeString()});
+  stats.ganaron++;
+  document.getElementById('statGanaron').textContent=stats.ganaron;
+  prizeCount=Math.max(0,prizeCount-1);
+  document.getElementById('countNum').textContent=prizeCount;
+  document.getElementById('counterName').textContent=prizeCount+' disponibles';
+  document.getElementById('statDisponibles').textContent=prizeCount;
+  renderCodes();
+  document.getElementById('prizeItem').textContent=prize;
+  document.getElementById('prizeCode').textContent=code;
+  document.getElementById('prizeInst').textContent='Válido solo hoy · Una vez por persona\nEl mozo lo marca como usado';
+  goTo('winScreen');
 }
 
 function showGameOver(){
